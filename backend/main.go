@@ -37,13 +37,15 @@ func main() {
 		log.Fatal("Failed to initialize service:", err)
 	}
 
-	count, err := services.SeedDatabase(ctx)
-	if err != nil {
-		log.Fatal("Failed to seed database:", err)
-	}
-	if count > 0 {
-		log.Printf("🌱 Seeded %d users\n", count)
-	}
+	/*
+		count, err := services.SeedDatabase(ctx)
+		if err != nil {
+			log.Fatal("Failed to seed database:", err)
+		}
+		if count > 0 {
+			log.Printf("🌱 Seeded %d users\n", count)
+		}
+	*/
 
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
