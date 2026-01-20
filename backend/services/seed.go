@@ -14,20 +14,19 @@ import (
 
 // SeedDatabase populates the database with initial users if empty.
 // Creates 10,000 users with controlled rank distribution:
-// - Rank 1, 2, 3: One person each
-// - Remaining: Two users per rank (same score)
 func SeedDatabase(ctx context.Context) (int, error) {
 	count, err := database.Collection("users").CountDocuments(ctx, bson.M{})
 	if err != nil {
 		return 0, err
 	}
 
-	if count > 0 {
+	if count >= 10000 {
 		log.Printf("📊 Database already has %d users, skipping seed", count)
 		return 0, nil
 	}
 
-	log.Println("🌱 Generating 10,000+ users with controlled rank distribution...")
+	needed := 10000 - int(count)
+	log.Printf("🌱 Adding %d more users (current: %d, target: 10,000)...", needed, count)
 
 	prefixes := []string{
 		"Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Eta", "Theta", "Iota", "Kappa",
@@ -68,8 +67,8 @@ func SeedDatabase(ctx context.Context) (int, error) {
 	usernameIndex := 0
 	currentScore := 4997
 
-	for len(users) < 10000 && currentScore >= 100 {
-		for i := 0; i < 2 && len(users) < 10000; i++ {
+	for len(users) < needed && currentScore >= 100 {
+		for i := 0; i < 2 && len(users) < needed; i++ {
 			prefixIdx := usernameIndex % len(prefixes)
 			suffixIdx := (usernameIndex / len(prefixes)) % len(suffixes)
 			numSuffix := usernameIndex / (len(prefixes) * len(suffixes))
