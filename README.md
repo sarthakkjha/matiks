@@ -8,7 +8,7 @@ A **high-performance leaderboard** designed to handle **10,000+ users** with **i
 
 | Requirement | Solution | Performance |
 |-------------|----------|-------------|
-| 10,000+ users | MongoDB + in-memory cache |  10,100 users seeded |
+| 10,000+ users | MongoDB + in-memory cache | 11,000 users seeded |
 | Username search | Prefix search with caching |  O(N) with early termination |
 | Rating updates | Debounced batch processing |  4,000+ updates/sec |
 | Real time leaderboard | Snapshot based rankings |  O(1) rank lookups |
