@@ -5,10 +5,13 @@
 
 // Get API URL from environment or use localhost for development
 const getApiUrl = (): string => {
-  // Check for Expo environment variable (works in Expo/React Native)
-  if (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
+  // Expo replaces this with the string value at build time.
+  // We access it directly to ensure the replacement works even if 'process' is not polyfilled.
+  const vercelUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (vercelUrl) {
+    return vercelUrl;
   }
+
   // Fallback for local development
   return 'http://localhost:3000/api';
 };
