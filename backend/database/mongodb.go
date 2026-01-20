@@ -38,6 +38,19 @@ func Connect(ctx context.Context, uri string) error {
 
 	database = client.Database("matiks-leaderboard")
 	log.Println("✅ MongoDB connected successfully")
+
+	// Create unique index on username to prevent duplicates
+	usersCollection := database.Collection("users")
+	indexModel := mongo.IndexModel{
+		Keys:    map[string]int{"username": 1},
+		Options: options.Index().SetUnique(true),
+	}
+	if _, err := usersCollection.Indexes().CreateOne(ctx, indexModel); err != nil {
+		log.Printf("⚠️ Index creation warning (may already exist): %v", err)
+	} else {
+		log.Println("✅ Username unique index created")
+	}
+
 	return nil
 }
 
