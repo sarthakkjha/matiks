@@ -3,6 +3,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"matiks-leaderboard/database"
@@ -26,58 +27,91 @@ func SeedDatabase(ctx context.Context) (int, error) {
 	needed := 10000 - int(count)
 	log.Printf("🌱 Adding %d more users (current: %d, target: 10,000)...", needed, count)
 
-	prefixes := []string{
-		"Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Eta", "Theta", "Iota", "Kappa",
-		"Lambda", "Mu", "Nu", "Xi", "Omicron", "Pi", "Rho", "Sigma", "Tau", "Upsilon",
-		"Phi", "Chi", "Psi", "Omega", "Phoenix", "Dragon", "Tiger", "Lion", "Eagle", "Falcon",
-		"Shadow", "Storm", "Thunder", "Lightning", "Blaze", "Frost", "Fire", "Ice", "Wind", "Wave",
-		"Ninja", "Samurai", "Knight", "Warrior", "Hunter", "Ranger", "Mage", "Wizard", "Sage", "Master",
-		"Player", "Gamer", "Pro", "Elite", "Legend", "Hero", "King", "Queen", "Prince", "Duke",
-		"Ace", "Star", "Nova", "Cosmic", "Cyber", "Tech", "Code", "Pixel", "Byte", "Vector",
-		"Arun", "Sarthak", "Rahul", "Amit", "Vijay", "Raj", "Dev", "Max", "Alex", "Sam",
-	}
-	suffixes := []string{"", "Pro", "X", "Elite", "King", "One", "Max", "Star", "Legend", "Boss"}
-
 	var users []interface{}
+
+	// Track used usernames to ensure uniqueness
 	usedUsernames := make(map[string]bool)
 
-	addUser := func(baseName string, score int) {
-		username := baseName
-		attempt := 0
-		for usedUsernames[username] {
-			attempt++
-			username = baseName + string(rune('0'+attempt))
+	// Helper to generate unique username
+	generateUsername := func(base string, index int) string {
+		name := fmt.Sprintf("%s%d", base, index)
+		if base == "User" {
+			name = fmt.Sprintf("User%05d", index)
 		}
-		usedUsernames[username] = true
+		// Ensure absolute uniqueness by appending a counter if the generated name is already used
+		originalName := name
+		counter := 1
+		for usedUsernames[name] {
+			name = fmt.Sprintf("%s_%d", originalName, counter)
+			counter++
+		}
+		usedUsernames[name] = true // Mark as used
+		return name
+	}
+
+	// 1. Top Ratings (4900-5000): Max 2 users per score
+	// 101 scores * 2 users = 202 users
+	currentScore := 5000
+	userCounter := 1
+
+	for currentScore >= 4900 && len(users) < needed {
+		// 2 users per score
+		for i := 0; i < 2; i++ {
+			username := generateUsername("TopPlayer", userCounter)
+			users = append(users, models.User{
+				ID:       primitive.NewObjectID(),
+				Username: username,
+				Score:    currentScore,
+			})
+			addedUser(username, currentScore)
+			userCounter++
+		}
+		currentScore--
+	}
+
+	// 2. Mid Ratings (2000-4899): 2 users per score
+	// 2900 scores * 2 users = 5800 users
+	for currentScore >= 2000 && len(users) < needed {
+		for i := 0; i < 2; i++ {
+			username := generateUsername("Player", userCounter)
+			users = append(users, models.User{
+				ID:       primitive.NewObjectID(),
+				Username: username,
+				Score:    currentScore,
+			})
+			addedUser(username, currentScore)
+			userCounter++
+		}
+		currentScore--
+	}
+
+	// 3. Lower Ratings (100-1999): 3 users per score (to fill up to 10000)
+	// We need ~4000 more users.
+	for currentScore >= 100 && len(users) < needed {
+		// 3 users per score
+		for i := 0; i < 3 && len(users) < needed; i++ {
+			username := generateUsername("User", userCounter)
+			users = append(users, models.User{
+				ID:       primitive.NewObjectID(),
+				Username: username,
+				Score:    currentScore,
+			})
+			addedUser(username, currentScore)
+			userCounter++
+		}
+		currentScore--
+	}
+
+	// Fill remaining if any
+	for len(users) < needed {
+		username := generateUsername("Newbie", userCounter)
 		users = append(users, models.User{
 			ID:       primitive.NewObjectID(),
 			Username: username,
-			Score:    score,
+			Score:    100,
 		})
-	}
-
-	addUser("Champion", 5000)
-	addUser("Legend", 4999)
-	addUser("Master", 4998)
-
-	usernameIndex := 0
-	currentScore := 4997
-
-	for len(users) < needed && currentScore >= 100 {
-		for i := 0; i < 2 && len(users) < needed; i++ {
-			prefixIdx := usernameIndex % len(prefixes)
-			suffixIdx := (usernameIndex / len(prefixes)) % len(suffixes)
-			numSuffix := usernameIndex / (len(prefixes) * len(suffixes))
-
-			username := prefixes[prefixIdx] + suffixes[suffixIdx]
-			if numSuffix > 0 {
-				username += string(rune('0' + numSuffix))
-			}
-
-			addUser(username, currentScore)
-			usernameIndex++
-		}
-		currentScore--
+		addedUser(username, 100)
+		userCounter++
 	}
 
 	log.Printf("   Generated %d users", len(users))
@@ -100,4 +134,7 @@ func SeedDatabase(ctx context.Context) (int, error) {
 	}
 
 	return len(users), nil
+}
+
+func addedUser(username string, score int) {
 }
