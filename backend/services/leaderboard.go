@@ -1,6 +1,4 @@
 // Package services contains the business logic for the leaderboard.
-// Coordinates database operations, caching, and ranking engine updates.
-// Implements debounced rebuilds for high-throughput update handling.
 package services
 
 import (
@@ -19,19 +17,11 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// Configuration for high-throughput updates.
-// SCALABILITY STRATEGY:
-// Instead of rebuilding the leaderboard on every single update (expensive O(N log N)),
-// we "debounce" the rebuilds. We wait for a quiet period (100ms) or max delay (500ms)
-// and aggregate all pending updates into a SINGLE rebuild operation.
-//
-// Result: 100 updates/sec -> 1 rebuild (instead of 100 rebuilds).
 const (
-	RebuildDelayMS    = 100 // Wait 100ms for more updates to arrive
-	MaxRebuildDelayMS = 500 // Force rebuild if we've waited this long (prevent staleness)
+	RebuildDelayMS    = 100
+	MaxRebuildDelayMS = 500
 )
 
-// Stats tracks update statistics for monitoring.
 type Stats struct {
 	mu                   sync.RWMutex
 	TotalUpdates         int64
@@ -47,8 +37,6 @@ var (
 	rebuildMu      sync.Mutex
 )
 
-// Initialize loads all users from MongoDB into cache and builds the snapshot.
-// Called once at startup.
 func Initialize(ctx context.Context) error {
 	cursor, err := database.Collection("users").Find(ctx, bson.M{})
 	if err != nil {
@@ -73,7 +61,6 @@ func Initialize(ctx context.Context) error {
 	return nil
 }
 
-// GetLeaderboard returns paginated leaderboard data.
 func GetLeaderboard(page, limit int) *models.LeaderboardResponse {
 	entries, total := engine.Global.GetLeaderboard(page, limit)
 
@@ -95,7 +82,6 @@ func GetLeaderboard(page, limit int) *models.LeaderboardResponse {
 	}
 }
 
-// GetTopN returns the top N users.
 func GetTopN(n int) []models.LeaderboardEntry {
 	entries := engine.Global.GetTop(n)
 
@@ -111,8 +97,6 @@ func GetTopN(n int) []models.LeaderboardEntry {
 	return result
 }
 
-// SearchByPrefix searches users by username prefix.
-// Returns results with their current rank.
 func SearchByPrefix(prefix string, limit int) []models.UserResponse {
 	results := cache.Global.SearchByPrefix(prefix, limit)
 
@@ -128,7 +112,6 @@ func SearchByPrefix(prefix string, limit int) []models.UserResponse {
 	return users
 }
 
-// GetUserByID retrieves a user by ID with their rank.
 func GetUserByID(userID string) *models.UserResponse {
 	entry, ok := cache.Global.Get(userID)
 	if !ok {
@@ -143,7 +126,6 @@ func GetUserByID(userID string) *models.UserResponse {
 	}
 }
 
-// CreateUser creates a new user in the database.
 func CreateUser(ctx context.Context, username string, score int) (*models.UserResponse, error) {
 	if score < 100 || score > 5000 {
 		return nil, &ValidationError{"Score must be between 100 and 5000"}
@@ -166,8 +148,6 @@ func CreateUser(ctx context.Context, username string, score int) (*models.UserRe
 	}, nil
 }
 
-// UpdateScore updates a user's score.
-// Cache is updated immediately; snapshot rebuild is debounced.
 func UpdateScore(ctx context.Context, userID string, newScore int) (*models.UserResponse, error) {
 	if newScore < 100 || newScore > 5000 {
 		return nil, &ValidationError{"Score must be between 100 and 5000"}
@@ -188,9 +168,7 @@ func UpdateScore(ctx context.Context, userID string, newScore int) (*models.User
 		return nil, err
 	}
 
-	// Update cache immediately (O(1))
 	cache.Global.Set(userID, cache.Entry{Username: user.Username, Score: newScore})
-	// Schedule debounced rebuild
 	scheduleRebuild()
 
 	return &models.UserResponse{
@@ -201,8 +179,6 @@ func UpdateScore(ctx context.Context, userID string, newScore int) (*models.User
 	}, nil
 }
 
-// BulkUpdateRandom updates 'count' random users with random scores.
-// Returns performance metrics.
 func BulkUpdateRandom(ctx context.Context, count int) (*models.BulkUpdateResult, error) {
 	start := time.Now()
 
@@ -216,7 +192,6 @@ func BulkUpdateRandom(ctx context.Context, count int) (*models.BulkUpdateResult,
 		count = len(userIDs)
 	}
 
-	// Shuffle for randomness
 	rand.Shuffle(len(userIDs), func(i, j int) {
 		userIDs[i], userIDs[j] = userIDs[j], userIDs[i]
 	})
@@ -249,7 +224,6 @@ func BulkUpdateRandom(ctx context.Context, count int) (*models.BulkUpdateResult,
 	}, nil
 }
 
-// BulkUpdateToValue updates 'count' random users to a specific score.
 func BulkUpdateToValue(ctx context.Context, count, targetScore int) (*models.BulkUpdateResult, error) {
 	if targetScore < 100 || targetScore > 5000 {
 		return nil, &ValidationError{"Score must be between 100 and 5000"}
@@ -298,7 +272,6 @@ func BulkUpdateToValue(ctx context.Context, count, targetScore int) (*models.Bul
 	}, nil
 }
 
-// GetStats returns service statistics for monitoring.
 func GetStats() map[string]interface{} {
 	stats.mu.RLock()
 	defer stats.mu.RUnlock()
@@ -312,7 +285,6 @@ func GetStats() map[string]interface{} {
 	}
 }
 
-// scheduleRebuild implements debounced rebuilding for high-throughput.
 func scheduleRebuild() {
 	rebuildMu.Lock()
 	defer rebuildMu.Unlock()
@@ -337,7 +309,6 @@ func scheduleRebuild() {
 	})
 }
 
-// executeRebuild performs the actual snapshot rebuild.
 func executeRebuild() {
 	count := pendingUpdates
 	pendingUpdates = 0
@@ -354,7 +325,6 @@ func executeRebuild() {
 	log.Printf("🔄 Snapshot rebuilt (batched %d updates)", count)
 }
 
-// ForceRebuild immediately rebuilds the snapshot.
 func ForceRebuild() {
 	rebuildMu.Lock()
 	defer rebuildMu.Unlock()
@@ -367,7 +337,6 @@ func ForceRebuild() {
 	engine.Global.Rebuild(cache.Global.GetAllWithIDs())
 }
 
-// ValidationError represents a validation failure.
 type ValidationError struct {
 	Message string
 }

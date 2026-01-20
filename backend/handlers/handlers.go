@@ -1,5 +1,4 @@
 // Package handlers contains HTTP request handlers for the API.
-// Each handler corresponds to an API endpoint.
 package handlers
 
 import (
@@ -11,8 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GetLeaderboard handles GET /api/leaderboard
-// Query params: page (default 1), limit (default 50, max 100)
 func GetLeaderboard(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
@@ -31,7 +28,6 @@ func GetLeaderboard(c *gin.Context) {
 	})
 }
 
-// GetTopN handles GET /api/leaderboard/top/:n
 func GetTopN(c *gin.Context) {
 	n, _ := strconv.Atoi(c.Param("n"))
 	if n < 1 {
@@ -48,9 +44,6 @@ func GetTopN(c *gin.Context) {
 	})
 }
 
-// SearchUsers handles GET /api/users/search
-// Query params: prefix or username (required), limit (default 100, max 500)
-// Returns ALL matching users up to the limit for complete search results.
 func SearchUsers(c *gin.Context) {
 	prefix := c.Query("prefix")
 	if prefix == "" {
@@ -64,7 +57,6 @@ func SearchUsers(c *gin.Context) {
 		return
 	}
 
-	// Allow higher limit for comprehensive search results
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
 	if limit < 1 {
 		limit = 100
@@ -80,7 +72,6 @@ func SearchUsers(c *gin.Context) {
 	})
 }
 
-// GetUserByID handles GET /api/users/:id
 func GetUserByID(c *gin.Context) {
 	userID := c.Param("id")
 
@@ -99,14 +90,12 @@ func GetUserByID(c *gin.Context) {
 	})
 }
 
-// CreateUserRequest is the request body for POST /api/users
 type CreateUserRequest struct {
 	Username string `json:"username" binding:"required"`
 	Rating   int    `json:"rating"`
 	Score    int    `json:"score"`
 }
 
-// CreateUser handles POST /api/users
 func CreateUser(c *gin.Context) {
 	var req CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -144,13 +133,11 @@ func CreateUser(c *gin.Context) {
 	})
 }
 
-// UpdateScoreRequest is the request body for PUT /api/users/:id/score
 type UpdateScoreRequest struct {
 	Score  int `json:"score"`
 	Rating int `json:"rating"`
 }
 
-// UpdateScore handles PUT /api/users/:id/score
 func UpdateScore(c *gin.Context) {
 	userID := c.Param("id")
 
@@ -187,12 +174,10 @@ func UpdateScore(c *gin.Context) {
 	})
 }
 
-// BulkUpdateRandomRequest is the request body for POST /api/bulk-update/random
 type BulkUpdateRandomRequest struct {
 	Count int `json:"count" binding:"required,min=1"`
 }
 
-// BulkUpdateRandom handles POST /api/bulk-update/random
 func BulkUpdateRandom(c *gin.Context) {
 	var req BulkUpdateRandomRequest
 	if err := c.ShouldBindJSON(&req); err != nil || req.Count < 1 {
@@ -218,13 +203,11 @@ func BulkUpdateRandom(c *gin.Context) {
 	})
 }
 
-// BulkUpdateToValueRequest is the request body for POST /api/bulk-update/value
 type BulkUpdateToValueRequest struct {
 	Count  int `json:"count" binding:"required,min=1"`
 	Rating int `json:"rating" binding:"required"`
 }
 
-// BulkUpdateToValue handles POST /api/bulk-update/value
 func BulkUpdateToValue(c *gin.Context) {
 	var req BulkUpdateToValueRequest
 	if err := c.ShouldBindJSON(&req); err != nil || req.Count < 1 {
@@ -254,7 +237,6 @@ func BulkUpdateToValue(c *gin.Context) {
 	})
 }
 
-// GetStats handles GET /api/stats
 func GetStats(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,

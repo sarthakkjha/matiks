@@ -12,8 +12,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// SeedDatabase populates the database with initial users if empty.
-// Creates 10,000 users with controlled rank distribution:
 func SeedDatabase(ctx context.Context) (int, error) {
 	count, err := database.Collection("users").CountDocuments(ctx, bson.M{})
 	if err != nil {
@@ -58,12 +56,10 @@ func SeedDatabase(ctx context.Context) (int, error) {
 		})
 	}
 
-	// Top 3 ranks: single person each
 	addUser("Champion", 5000)
 	addUser("Legend", 4999)
 	addUser("Master", 4998)
 
-	// Remaining users: 2 per rank
 	usernameIndex := 0
 	currentScore := 4997
 
@@ -86,7 +82,6 @@ func SeedDatabase(ctx context.Context) (int, error) {
 
 	log.Printf("   Generated %d users", len(users))
 
-	// Batch insert
 	batchSize := 500
 	for i := 0; i < len(users); i += batchSize {
 		end := i + batchSize
@@ -100,7 +95,6 @@ func SeedDatabase(ctx context.Context) (int, error) {
 		log.Printf("   Inserted batch %d/%d", (i/batchSize)+1, (len(users)+batchSize-1)/batchSize)
 	}
 
-	// Reload into cache
 	if err := Initialize(ctx); err != nil {
 		return 0, err
 	}

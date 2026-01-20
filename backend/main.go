@@ -1,14 +1,5 @@
 // Matiks Leaderboard Backend
 // A high-performance, scalable leaderboard API built with Go and Gin.
-//
-// ARCHITECTURE FEATURES:
-// 1. In-Memory Caching (cache/): O(1) reads, thread-safe, ready for Redis swap.
-// 2. Ranking Engine (engine/): Snapshot-based O(1) rank lookups with tied-rank support.
-// 3. Debounced Updates (services/): Batches hundreds of updates into single rebuilds.
-// 4. Clean Architecture: Separated concerns (handlers -> services -> engine/cache -> db).
-//
-// Run with: go run main.go
-// Environment: MONGODB_URI, PORT
 package main
 
 import (
@@ -26,10 +17,8 @@ import (
 )
 
 func main() {
-	// Load environment variables
 	godotenv.Load()
 
-	// Connect to MongoDB
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -43,13 +32,11 @@ func main() {
 	}
 	defer database.Disconnect(context.Background())
 
-	// Initialize leaderboard service (load cache, build snapshot)
 	log.Println("📊 Initializing Leaderboard Service...")
 	if err := services.Initialize(ctx); err != nil {
 		log.Fatal("Failed to initialize service:", err)
 	}
 
-	// Seed database if empty
 	count, err := services.SeedDatabase(ctx)
 	if err != nil {
 		log.Fatal("Failed to seed database:", err)
@@ -58,11 +45,9 @@ func main() {
 		log.Printf("🌱 Seeded %d users\n", count)
 	}
 
-	// Setup Gin router
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
-	// CORS middleware
 	r.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
@@ -74,7 +59,6 @@ func main() {
 		c.Next()
 	})
 
-	// Health check (required for Render)
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"status":    "ok",
@@ -82,7 +66,6 @@ func main() {
 		})
 	})
 
-	// Root endpoint
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"name":    "Matiks Leaderboard API",
@@ -91,28 +74,22 @@ func main() {
 		})
 	})
 
-	// API routes
 	api := r.Group("/api")
 	{
-		// Leaderboard
 		api.GET("/leaderboard", handlers.GetLeaderboard)
 		api.GET("/leaderboard/top/:n", handlers.GetTopN)
 
-		// Users
 		api.GET("/users/search", handlers.SearchUsers)
 		api.GET("/users/:id", handlers.GetUserByID)
 		api.POST("/users", handlers.CreateUser)
 		api.PUT("/users/:id/score", handlers.UpdateScore)
 
-		// Bulk updates (for demo)
 		api.POST("/bulk-update/random", handlers.BulkUpdateRandom)
 		api.POST("/bulk-update/value", handlers.BulkUpdateToValue)
 
-		// Stats
 		api.GET("/stats", handlers.GetStats)
 	}
 
-	// Start server
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "3000"
