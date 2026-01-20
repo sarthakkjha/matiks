@@ -32,6 +32,28 @@ func SeedDatabase(ctx context.Context) (int, error) {
 	// Track used usernames to ensure uniqueness
 	usedUsernames := make(map[string]bool)
 
+	// Fetch existing usernames to populate the map
+	cursor, err := database.Collection("users").Find(ctx, bson.M{})
+	if err != nil {
+		log.Printf("⚠️ Failed to fetch existing users: %v", err)
+		// We continue, but duplicates might occur.
+		// Ideally we should return error or handle it.
+		// Since this is seeding, let's just log. Better to try-fail than stop?
+		// Actually, let's return error to be safe as per user request to FIX it.
+		return 0, err
+	}
+	defer cursor.Close(ctx)
+
+	var existingUser struct {
+		Username string `bson:"username"`
+	}
+
+	for cursor.Next(ctx) {
+		if err := cursor.Decode(&existingUser); err == nil {
+			usedUsernames[existingUser.Username] = true
+		}
+	}
+
 	// Helper to generate unique username
 	generateUsername := func(base string, index int) string {
 		name := fmt.Sprintf("%s%d", base, index)
