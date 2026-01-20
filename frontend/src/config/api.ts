@@ -1,13 +1,20 @@
 /**
  * API Configuration
- * Update the BASE_URL to match your backend server
+ * Uses environment variable for production, falls back to localhost for development
  */
 
-// For iOS Simulator: use localhost
-// For Android Emulator: use 10.0.2.2
-// For physical device: use your computer's IP address
+// Get API URL from environment or use localhost for development
+const getApiUrl = (): string => {
+  // Check for Expo environment variable (works in Expo/React Native)
+  if (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+  // Fallback for local development
+  return 'http://localhost:3000/api';
+};
+
 export const API_CONFIG = {
-  BASE_URL: 'http://localhost:3000/api',
+  BASE_URL: getApiUrl(),
   TIMEOUT: 10000,
 };
 
