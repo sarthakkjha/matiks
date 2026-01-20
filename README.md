@@ -4,18 +4,18 @@ A **high-performance leaderboard** designed to handle **10,000+ users** with **i
 
 ---
 
-## ✅ Requirements Fulfilled
+## Requirements Fulfilled
 
 | Requirement | Solution | Performance |
 |-------------|----------|-------------|
-| 10,000+ users | MongoDB + in-memory cache | ✅ 10,100 users seeded |
-| Username search | Prefix search with caching | ✅ O(N) with early termination |
-| Rating updates | Debounced batch processing | ✅ 4,000+ updates/sec |
-| Real time leaderboard | Snapshot based rankings | ✅ O(1) rank lookups |
+| 10,000+ users | MongoDB + in-memory cache |  10,100 users seeded |
+| Username search | Prefix search with caching |  O(N) with early termination |
+| Rating updates | Debounced batch processing |  4,000+ updates/sec |
+| Real time leaderboard | Snapshot based rankings |  O(1) rank lookups |
 
 ---
 
-## 🔍 Optimization #1: Username Search
+## Optimization #1: Username Search
 
 **Challenge**: Search 10,000 usernames quickly without overwhelming the database.
 
@@ -52,7 +52,7 @@ Results: ShadowKing, ShadowPro, Shadow123...
 
 ---
 
-## ⚡ Optimization #2: High-Throughput Writes
+## Optimization #2: High-Throughput Writes
 
 **Challenge**: Handle hundreds of rating updates per second without performance degradation.
 
@@ -82,19 +82,11 @@ Results: ShadowKing, ShadowPro, Shadow123...
 └─────────────────────────────────────────────────┘
 ```
 
-**Implementation**:
-```go
-const (
-    RebuildDelayMS    = 100  // Batch updates within 100ms
-    MaxRebuildDelayMS = 500  // Force rebuild after 500ms max
-)
-```
 
 **Results**:
 | Updates | Without Batching | With Batching |
 |---------|------------------|---------------|
 | 100 | 100 O(N log N) rebuilds | 1 rebuild |
-| 1000 | 1000 rebuilds | ~10 rebuilds |
 
 **Measured Performance**: **4,385 updates/second** (tested with bulk update API)
 
@@ -102,7 +94,7 @@ const (
 
 ---
 
-## 📊 Optimization #3: Real-Time Leaderboard
+## Optimization #3: Real-Time Leaderboard
 
 **Challenge**: Show accurate rankings after updates without slow database queries.
 
