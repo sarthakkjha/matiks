@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/rand"
 	"time"
 
 	"matiks-leaderboard/database"
@@ -14,10 +15,30 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+// Username prefixes for variety
+var prefixes = []string{
+	"Shadow", "Dragon", "Phoenix", "Storm", "Thunder", "Blaze", "Frost", "Night",
+	"Star", "Moon", "Sun", "Fire", "Ice", "Dark", "Light", "Mystic", "Cyber",
+	"Ninja", "Samurai", "Viking", "Knight", "Wizard", "Hunter", "Sniper", "Ghost",
+	"Alpha", "Beta", "Omega", "Prime", "Elite", "Pro", "Master", "Legend",
+	"Swift", "Rapid", "Turbo", "Hyper", "Ultra", "Mega", "Super", "Epic",
+	"Ace", "King", "Queen", "Royal", "Crown", "Diamond", "Golden", "Silver",
+	"Crimson", "Azure", "Cosmic", "Void", "Chaos", "Order", "Fury", "Rage",
+}
+
+var suffixes = []string{
+	"X", "Z", "Pro", "HD", "XL", "Max", "Plus", "Prime", "Elite", "Master",
+	"99", "007", "123", "360", "420", "777", "888", "1337", "2024", "3000",
+}
+
+// Special names to include (like Rahul)
+var specialNames = []string{
+	"Rahul", "Arjun", "Priya", "Neha", "Rohan", "Ananya", "Vikram", "Aisha",
+	"Alex", "Jordan", "Sam", "Taylor", "Morgan", "Casey", "Riley", "Quinn",
+	"Zara", "Leo", "Max", "Luna", "Nova", "Kai", "Ace", "Blaze",
+}
+
 // SeedDatabase creates 11,000 users with proper rating distribution.
-// - Ratings from 100 to 5000 (4,901 distinct values)
-// - At least 2 users per rating
-// - 3 users for lower ratings (100-1297) to reach 11,000 total
 func SeedDatabase(ctx context.Context) (int, error) {
 	collection := database.Collection("users")
 
@@ -39,48 +60,92 @@ func SeedDatabase(ctx context.Context) (int, error) {
 		}
 	}
 
-	log.Println("🌱 Seeding 11,000 users...")
+	log.Println("🌱 Seeding 11,000 users with varied names...")
 
 	var users []interface{}
+	usedNames := make(map[string]bool)
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	// Calculate: 4,901 ratings (100-5000) × 2 = 9,802 users
-	// Remaining: 11,000 - 9,802 = 1,198 users
-	// Add 3rd user for ratings 100-1297 (1,198 ratings)
+	// Helper to generate unique username
+	generateUniqueName := func(rating, index int) string {
+		var name string
 
-	// First pass: 2 users per rating (100-5000)
-	for rating := 5000; rating >= 100; rating-- {
-		for i := 1; i <= 2; i++ {
-			username := fmt.Sprintf("Player_%d_%d", rating, i)
+		// Different naming strategies based on rating tier
+		switch {
+		case rating >= 4500: // Top tier - Elite names
+			prefix := prefixes[rng.Intn(len(prefixes))]
+			name = fmt.Sprintf("%s_%d", prefix, rating)
+		case rating >= 3500: // High tier - Prefix + suffix combo
+			prefix := prefixes[rng.Intn(len(prefixes))]
+			suffix := suffixes[rng.Intn(len(suffixes))]
+			name = fmt.Sprintf("%s%s_%d", prefix, suffix, rating)
+		case rating >= 2500: // Mid tier - Gaming style
+			prefix := prefixes[rng.Intn(len(prefixes))]
+			name = fmt.Sprintf("xX_%s_%d_Xx", prefix, rating)
+		case rating >= 1500: // Lower-mid tier - Simple prefix + number
+			prefix := prefixes[rng.Intn(len(prefixes))]
+			name = fmt.Sprintf("%s%d_%d", prefix, rng.Intn(999), rating)
+		default: // Low tier - Player style
+			name = fmt.Sprintf("Player_%d_%d", rating, index)
+		}
+
+		// Ensure uniqueness
+		originalName := name
+		counter := 1
+		for usedNames[name] {
+			name = fmt.Sprintf("%s_%d", originalName, counter)
+			counter++
+		}
+		usedNames[name] = true
+		return name
+	}
+
+	// First: Add special names with high ratings (for demo purposes)
+	for i, specialName := range specialNames {
+		rating := 5000 - i // Rahul gets 5000, Arjun gets 4999, etc.
+		if !usedNames[specialName] {
+			users = append(users, models.User{
+				ID:       primitive.NewObjectID(),
+				Username: specialName,
+				Score:    rating,
+			})
+			usedNames[specialName] = true
+		}
+	}
+	log.Printf("   Added %d special names (including Rahul at #1)", len(specialNames))
+
+	// Calculate remaining users needed
+	remaining := 11000 - len(users)
+
+	// Distribute across ratings 100-5000 with 2 users per rating
+	// Some will get 3 for lower ratings to fill up
+	ratingsNeeded := 4901 // 100 to 5000
+	usersPerRating := 2
+	extraUsersForLowRatings := remaining - (ratingsNeeded * usersPerRating)
+
+	userIndex := 1
+	for rating := 5000; rating >= 100 && len(users) < 11000; rating-- {
+		// Skip ratings already used by special names
+		count := usersPerRating
+		if rating <= 100+extraUsersForLowRatings && extraUsersForLowRatings > 0 {
+			count = 3
+		}
+
+		for i := 0; i < count && len(users) < 11000; i++ {
+			username := generateUniqueName(rating, userIndex)
 			users = append(users, models.User{
 				ID:       primitive.NewObjectID(),
 				Username: username,
 				Score:    rating,
 			})
+			userIndex++
 		}
 	}
 
-	log.Printf("   Generated %d users (2 per rating)", len(users))
-
-	// Second pass: Add 3rd user for lower ratings to reach 11,000
-	// Need 1,198 more users (ratings 100-1297)
-	extraNeeded := 11000 - len(users)
-	extraAdded := 0
-
-	for rating := 100; rating <= 1297 && extraAdded < extraNeeded; rating++ {
-		username := fmt.Sprintf("Player_%d_3", rating)
-		users = append(users, models.User{
-			ID:       primitive.NewObjectID(),
-			Username: username,
-			Score:    rating,
-		})
-		extraAdded++
-	}
-
-	log.Printf("   Added %d extra users (3rd user for lower ratings)", extraAdded)
-	log.Printf("   Total users to insert: %d", len(users))
+	log.Printf("   Generated %d total users", len(users))
 
 	// Insert in batches with retry logic
-	batchSize := 200 // Smaller batches for better reliability
+	batchSize := 200
 	maxRetries := 3
 
 	for i := 0; i < len(users); i += batchSize {
@@ -95,7 +160,6 @@ func SeedDatabase(ctx context.Context) (int, error) {
 
 		var lastErr error
 		for retry := 0; retry < maxRetries; retry++ {
-			// Use a fresh context with longer timeout for each batch
 			batchCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 			_, err := collection.InsertMany(batchCtx, batch)
 			cancel()
@@ -108,8 +172,6 @@ func SeedDatabase(ctx context.Context) (int, error) {
 
 			lastErr = err
 			log.Printf("   ⚠️ Batch %d failed (attempt %d/%d): %v", batchNum, retry+1, maxRetries, err)
-
-			// Wait before retry
 			time.Sleep(time.Duration(2*(retry+1)) * time.Second)
 		}
 
@@ -117,7 +179,6 @@ func SeedDatabase(ctx context.Context) (int, error) {
 			return 0, fmt.Errorf("failed to insert batch %d after %d retries: %w", batchNum, maxRetries, lastErr)
 		}
 
-		// Small delay between batches to avoid overwhelming the connection
 		time.Sleep(100 * time.Millisecond)
 	}
 
@@ -129,6 +190,6 @@ func SeedDatabase(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("failed to initialize after seeding: %w", err)
 	}
 
-	log.Printf("✅ Successfully seeded %d users", len(users))
+	log.Printf("✅ Successfully seeded %d users with varied names", len(users))
 	return len(users), nil
 }
