@@ -2,14 +2,6 @@ import axios, { AxiosInstance, AxiosError } from 'axios';
 import { API_CONFIG, ENDPOINTS } from '../config/api';
 import { LeaderboardResponse, UserSearchResponse } from '../types/leaderboard';
 
-/**
- * API Service for communicating with the Go backend.
- * 
- * DESIGN:
- * - Singleton instance for unified state management
- * - Axios interceptors for global error handling and logging
- * - Type-safe response handling with TypeScript interfaces
- */
 class ApiService {
   private client: AxiosInstance;
 
